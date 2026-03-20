@@ -156,13 +156,14 @@ export class SummaryScheduler {
     ]);
 
     // Step 3: Render card images + roast card
-    logger.info('Scheduler', 'Rendering cards...');
+    const theme = period === 'evening' ? 'dark' : 'light';
+    logger.info('Scheduler', `Rendering cards (${theme} theme)...`);
     summary.date = `${dateStr} · ${label} (${timeRange})`;
-    const imagePaths = await cardRenderer.render(summary);
+    const imagePaths = await cardRenderer.render(summary, theme);
 
     if (roast.items.length > 0) {
       logger.info('Scheduler', 'Rendering roast card...');
-      const roastPath = await cardRenderer.renderRoast(roast);
+      const roastPath = await cardRenderer.renderRoast(roast, theme);
       imagePaths.push(roastPath);
     }
 

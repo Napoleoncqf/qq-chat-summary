@@ -20,7 +20,7 @@ export class CardRenderer {
     }
   }
 
-  async render(summary: DailySummary): Promise<string[]> {
+  async render(summary: DailySummary, theme: 'light' | 'dark' = 'dark'): Promise<string[]> {
     const needsSplit = this.shouldSplit(summary);
     const outputPaths: string[] = [];
 
@@ -29,17 +29,17 @@ export class CardRenderer {
     const ts = Date.now();
 
     if (needsSplit) {
-      const html1 = await this.renderTemplate(summary, 0);
+      const html1 = await this.renderTemplate(summary, 0, theme);
       const path1 = path.join(this.outputDir, `summary_${safeDate}_${ts}_1.png`);
       await this.screenshotHtml(html1, path1);
       outputPaths.push(path1);
 
-      const html2 = await this.renderTemplate(summary, 1);
+      const html2 = await this.renderTemplate(summary, 1, theme);
       const path2 = path.join(this.outputDir, `summary_${safeDate}_${ts}_2.png`);
       await this.screenshotHtml(html2, path2);
       outputPaths.push(path2);
     } else {
-      const html = await this.renderTemplate(summary, undefined);
+      const html = await this.renderTemplate(summary, undefined, theme);
       const outputPath = path.join(this.outputDir, `summary_${safeDate}_${ts}.png`);
       await this.screenshotHtml(html, outputPath);
       outputPaths.push(outputPath);
@@ -61,7 +61,7 @@ export class CardRenderer {
     return totalItems > 12;
   }
 
-  private async renderTemplate(summary: DailySummary, pageIndex: number | undefined): Promise<string> {
+  private async renderTemplate(summary: DailySummary, pageIndex: number | undefined, theme: 'light' | 'dark' = 'dark'): Promise<string> {
     const template = fs.readFileSync(this.templatePath, 'utf-8');
 
     const now = new Date();
@@ -74,6 +74,7 @@ export class CardRenderer {
       ...safeSummary,
       pageIndex,
       generatedAt,
+      theme,
     });
 
     return html;
@@ -119,7 +120,7 @@ export class CardRenderer {
     };
   }
 
-  async renderRoast(roast: RoastResult): Promise<string> {
+  async renderRoast(roast: RoastResult, theme: 'light' | 'dark' = 'dark'): Promise<string> {
     const template = fs.readFileSync(this.roastTemplatePath, 'utf-8');
 
     const escapeHtml = (str: string): string => {
@@ -140,7 +141,7 @@ export class CardRenderer {
       })),
     };
 
-    const html = ejs.render(template, safeRoast);
+    const html = ejs.render(template, { ...safeRoast, theme });
     const safeDate = roast.date_range.replace(/[^a-zA-Z0-9\-]/g, '_').replace(/_+/g, '_').replace(/_$/, '');
     const outputPath = path.join(this.outputDir, `roast_${safeDate}_${Date.now()}.png`);
     await this.screenshotHtml(html, outputPath);

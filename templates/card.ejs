@@ -6,10 +6,31 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+  :root {
+    --bg: #0d0d1a; --text: #e0e0e0; --text-sub: #9ca3af; --text-muted: #888;
+    --card-bg: rgba(25, 25, 50, 0.7); --card-border: rgba(100, 80, 180, 0.25);
+    --stat-bg: rgba(30, 30, 60, 0.6); --stat-border: rgba(120, 100, 200, 0.2);
+    --stat-value: #c4b5fd; --accent: #818cf8; --accent2: #c084fc;
+    --link: #60a5fa; --section-title: #ccc;
+    --mod-bg: rgba(180, 80, 50, 0.15); --mod-border: rgba(220, 100, 60, 0.3);
+    --footer: #555; --footer-border: rgba(100, 100, 150, 0.15);
+    --title-from: #a78bfa; --title-to: #818cf8;
+  }
+  .light {
+    --bg: #f5f5f7; --text: #1a1a2e; --text-sub: #555; --text-muted: #777;
+    --card-bg: #fff; --card-border: #e0e0e0;
+    --stat-bg: #fff; --stat-border: #ddd;
+    --stat-value: #6c5ce7; --accent: #5b4fcf; --accent2: #7c3aed;
+    --link: #2563eb; --section-title: #333;
+    --mod-bg: rgba(220, 80, 50, 0.08); --mod-border: rgba(220, 100, 60, 0.25);
+    --footer: #aaa; --footer-border: #e0e0e0;
+    --title-from: #6c5ce7; --title-to: #5b4fcf;
+  }
+
   body {
     width: 520px;
-    background: #0d0d1a;
-    color: #e0e0e0;
+    background: var(--bg);
+    color: var(--text);
     font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
     padding: 24px 20px;
     line-height: 1.6;
@@ -25,169 +46,80 @@
   .header-title {
     font-size: 20px;
     font-weight: 700;
-    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    background: linear-gradient(135deg, var(--title-from), var(--title-to));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     font-style: italic;
   }
   .header-date {
     font-size: 13px;
-    color: #888;
+    color: var(--text-muted);
   }
 
   /* Stats row */
-  .stats-row {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-  }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 24px; }
   .stat-card {
-    flex: 1;
-    background: rgba(30, 30, 60, 0.6);
-    border: 1px solid rgba(120, 100, 200, 0.2);
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
+    flex: 1; background: var(--stat-bg); border: 1px solid var(--stat-border);
+    border-radius: 10px; padding: 12px; text-align: center;
   }
-  .stat-value {
-    font-size: 28px;
-    font-weight: 700;
-    color: #c4b5fd;
-  }
-  .stat-label {
-    font-size: 12px;
-    color: #888;
-    margin-top: 2px;
-  }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--stat-value); }
+  .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 
   /* Section */
-  .section {
-    margin-bottom: 20px;
-  }
+  .section { margin-bottom: 20px; }
   .section-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: #ccc;
-    margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    font-size: 15px; font-weight: 600; color: var(--section-title);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
   }
 
   /* Topic cards */
   .topic-card {
-    background: rgba(25, 25, 50, 0.7);
-    border: 1px solid rgba(100, 80, 180, 0.25);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 13px;
-    line-height: 1.7;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+    font-size: 13px; line-height: 1.7;
   }
-  .topic-card .participants {
-    color: #818cf8;
-    font-size: 12px;
-  }
+  .topic-card .participants { color: var(--accent); font-size: 12px; }
 
   /* Highlight cards */
   .highlight-card {
-    background: rgba(25, 25, 50, 0.7);
-    border: 1px solid rgba(100, 80, 180, 0.25);
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    font-size: 13px;
-    line-height: 1.7;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 12px 14px; margin-bottom: 8px;
+    font-size: 13px; line-height: 1.7;
   }
-  .highlight-user {
-    color: #c084fc;
-    font-weight: 600;
-  }
-  .highlight-comment {
-    color: #9ca3af;
-    margin-top: 4px;
-  }
+  .highlight-user { color: var(--accent2); font-weight: 600; }
+  .highlight-comment { color: var(--text-sub); margin-top: 4px; }
 
   /* Ranking */
-  .ranking-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .rank-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    min-width: 140px;
-  }
-  .rank-medal {
-    font-size: 16px;
-  }
-  .rank-number {
-    color: #818cf8;
-    font-weight: 700;
-    min-width: 16px;
-  }
-  .rank-name {
-    color: #e0e0e0;
-  }
-  .rank-count {
-    color: #888;
-    margin-left: 2px;
-  }
+  .ranking-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rank-item { display: flex; align-items: center; gap: 6px; font-size: 13px; min-width: 140px; }
+  .rank-medal { font-size: 16px; }
+  .rank-number { color: var(--accent); font-weight: 700; min-width: 16px; }
+  .rank-name { color: var(--text); }
+  .rank-count { color: var(--text-muted); margin-left: 2px; }
 
   /* Moderation */
-  .mod-card {
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .mod-card.warn {
-    background: rgba(180, 80, 50, 0.15);
-    border: 1px solid rgba(220, 100, 60, 0.3);
-  }
-  .mod-type {
-    color: #f87171;
-    font-weight: 600;
-  }
+  .mod-card { border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-size: 13px; line-height: 1.6; }
+  .mod-card.warn { background: var(--mod-bg); border: 1px solid var(--mod-border); }
+  .mod-type { color: #f87171; font-weight: 600; }
 
   /* Resources */
   .resource-card {
-    background: rgba(25, 25, 50, 0.7);
-    border: 1px solid rgba(100, 80, 180, 0.25);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 13px;
-    line-height: 1.6;
-    word-break: break-all;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 8px;
+    font-size: 13px; line-height: 1.6; word-break: break-all;
   }
-  .resource-user {
-    color: #818cf8;
-    font-weight: 600;
-  }
-  .resource-url {
-    color: #60a5fa;
-  }
-  .resource-desc {
-    color: #9ca3af;
-  }
+  .resource-user { color: var(--accent); font-weight: 600; }
+  .resource-url { color: var(--link); }
+  .resource-desc { color: var(--text-sub); }
 
   /* Footer */
   .footer {
-    text-align: center;
-    font-size: 11px;
-    color: #555;
-    margin-top: 20px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(100, 100, 150, 0.15);
+    text-align: center; font-size: 11px; color: var(--footer);
+    margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--footer-border);
   }
 </style>
 </head>
-<body>
+<body class="<%= theme === 'light' ? 'light' : '' %>">
 
 <!-- Header -->
 <div class="header">
@@ -221,7 +153,7 @@
   <div class="topic-card">
     <div><%= topic.title %></div>
     <% if (topic.summary) { %>
-    <div style="color: #9ca3af; font-size: 12px; margin-top: 2px;"><%= topic.summary %></div>
+    <div style="color: var(--text-sub); font-size: 12px; margin-top: 2px;"><%= topic.summary %></div>
     <% } %>
     <% if (topic.participants && topic.participants.length > 0) { %>
     <div class="participants"><%= topic.participants.map(function(p) { return p.startsWith('@') ? p : '@' + p; }).join(' ') %></div>
@@ -282,7 +214,7 @@
   <div class="mod-card warn">
     <span class="mod-type">[<%= m.type %>]</span> @<%= m.user %>: <%= m.content %>
     <% if (m.reason) { %>
-    <div style="color: #9ca3af; font-size: 12px;"><%= m.reason %></div>
+    <div style="color: var(--text-sub); font-size: 12px;"><%= m.reason %></div>
     <% } %>
   </div>
   <% }); %>
