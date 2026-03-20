@@ -1,0 +1,15 @@
+node_modules/
+dist/
+data/*.db
+data/*.db-wal
+data/*.db-shm
+output/
+temp/
+reports/
+tests/
+docs/
+.claude/
+CLAUDE.md
+vitest.config.ts
+.env
+*.log

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=520">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 520px;
+    background: #0d0d1a;
+    color: #e0e0e0;
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 24px 20px;
+    line-height: 1.6;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 24px;
+  }
+
+  .roast-card {
+    background: rgba(25, 25, 50, 0.5);
+    border: 1px solid rgba(100, 80, 180, 0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .roast-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .rank-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .user-info {
+    flex: 1;
+  }
+
+  .user-name {
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .user-count {
+    font-size: 12px;
+    color: #888;
+  }
+
+  .roast-text {
+    font-size: 13.5px;
+    color: #ccc;
+    line-height: 1.8;
+    white-space: pre-line;
+  }
+
+  .footer {
+    text-align: right;
+    font-size: 12px;
+    color: #555;
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(100, 100, 150, 0.15);
+  }
+</style>
+</head>
+<body>
+
+<div class="title"><%= group_name %> 群友锐评</div>
+<div class="subtitle"><%= date_range %> | <%= message_count %> 条消息 · <%= user_count %> 位发言者</div>
+
+<%
+  var badgeColors = [
+    '#d97706', // amber
+    '#6b7280', // gray
+    '#d97706', // amber
+    '#8b5cf6', // purple
+    '#059669', // green
+    '#dc2626', // red
+    '#059669', // green
+    '#dc2626', // red
+    '#8b5cf6', // purple
+    '#dc2626', // red
+    '#d97706', // amber
+    '#059669', // green
+    '#8b5cf6', // purple
+    '#dc2626', // red
+    '#059669', // green
+  ];
+  var nameColors = [
+    '#f59e0b', // amber
+    '#9ca3af', // gray
+    '#f59e0b', // amber
+    '#a78bfa', // purple
+    '#34d399', // green
+    '#f87171', // red
+    '#34d399', // green
+    '#f87171', // red
+    '#a78bfa', // purple
+    '#f87171', // red
+    '#f59e0b', // amber
+    '#34d399', // green
+    '#a78bfa', // purple
+    '#f87171', // red
+    '#34d399', // green
+  ];
+%>
+
+<% items.forEach(function(item, i) { %>
+<div class="roast-card">
+  <div class="roast-header">
+    <div class="rank-badge" style="background: <%= badgeColors[i % badgeColors.length] %>;">
+      <%= item.rank %>
+    </div>
+    <div class="user-info">
+      <div class="user-name" style="color: <%= nameColors[i % nameColors.length] %>;"><%= item.user %></div>
+      <div class="user-count"><%= item.count %>条</div>
+    </div>
+  </div>
+  <div class="roast-text"><%= item.roast %></div>
+</div>
+<% }); %>
+
+<div class="footer">
+  —— 来自 Nagi 夜间人格的深夜锐评
+</div>
+
+</body>
+</html>

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=520">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 520px;
+    background: #0d0d1a;
+    color: #e0e0e0;
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    padding: 24px 20px;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 20px;
+  }
+  .header-title {
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #a78bfa, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-style: italic;
+  }
+  .header-date {
+    font-size: 13px;
+    color: #888;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    flex: 1;
+    background: rgba(30, 30, 60, 0.6);
+    border: 1px solid rgba(120, 100, 200, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #c4b5fd;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+  }
+
+  /* Section */
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ccc;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Topic cards */
+  .topic-card {
+    background: rgba(25, 25, 50, 0.7);
+    border: 1px solid rgba(100, 80, 180, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .topic-card .participants {
+    color: #818cf8;
+    font-size: 12px;
+  }
+
+  /* Highlight cards */
+  .highlight-card {
+    background: rgba(25, 25, 50, 0.7);
+    border: 1px solid rgba(100, 80, 180, 0.25);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .highlight-user {
+    color: #c084fc;
+    font-weight: 600;
+  }
+  .highlight-comment {
+    color: #9ca3af;
+    margin-top: 4px;
+  }
+
+  /* Ranking */
+  .ranking-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .rank-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    min-width: 140px;
+  }
+  .rank-medal {
+    font-size: 16px;
+  }
+  .rank-number {
+    color: #818cf8;
+    font-weight: 700;
+    min-width: 16px;
+  }
+  .rank-name {
+    color: #e0e0e0;
+  }
+  .rank-count {
+    color: #888;
+    margin-left: 2px;
+  }
+
+  /* Moderation */
+  .mod-card {
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .mod-card.warn {
+    background: rgba(180, 80, 50, 0.15);
+    border: 1px solid rgba(220, 100, 60, 0.3);
+  }
+  .mod-type {
+    color: #f87171;
+    font-weight: 600;
+  }
+
+  /* Resources */
+  .resource-card {
+    background: rgba(25, 25, 50, 0.7);
+    border: 1px solid rgba(100, 80, 180, 0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-all;
+  }
+  .resource-user {
+    color: #818cf8;
+    font-weight: 600;
+  }
+  .resource-url {
+    color: #60a5fa;
+  }
+  .resource-desc {
+    color: #9ca3af;
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    color: #555;
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(100, 100, 150, 0.15);
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-title"><%= group_name %></div>
+  <div class="header-date"><%= date %> · 每日总结</div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="stat-value"><%= stats.message_count %></div>
+    <div class="stat-label">消息</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value"><%= stats.user_count %></div>
+    <div class="stat-label">参与者</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="font-size: 18px; line-height: 1.8;"><%= stats.active_hours %></div>
+    <div class="stat-label">活跃时段</div>
+  </div>
+</div>
+
+<% if (pageIndex === 0 || pageIndex === undefined) { %>
+
+<!-- Topics -->
+<% if (topics && topics.length > 0) { %>
+<div class="section">
+  <div class="section-title">💬 话题总结</div>
+  <% topics.forEach(function(topic) { %>
+  <div class="topic-card">
+    <div><%= topic.title %></div>
+    <% if (topic.summary) { %>
+    <div style="color: #9ca3af; font-size: 12px; margin-top: 2px;"><%= topic.summary %></div>
+    <% } %>
+    <% if (topic.participants && topic.participants.length > 0) { %>
+    <div class="participants"><%= topic.participants.map(function(p) { return p.startsWith('@') ? p : '@' + p; }).join(' ') %></div>
+    <% } %>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+
+<!-- Ranking -->
+<% if (ranking && ranking.length > 0) { %>
+<div class="section">
+  <div class="section-title">🏆 活跃排行</div>
+  <div class="ranking-grid">
+    <% ranking.forEach(function(r, i) { %>
+    <div class="rank-item">
+      <% if (i === 0) { %>
+        <span class="rank-medal">🥇</span>
+      <% } else if (i === 1) { %>
+        <span class="rank-medal">🥈</span>
+      <% } else if (i === 2) { %>
+        <span class="rank-medal">🥉</span>
+      <% } else { %>
+        <span class="rank-number"><%= i + 1 %></span>
+      <% } %>
+      <span class="rank-name"><%= r.user %></span>
+      <span class="rank-count"><%= r.count %>条</span>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<% } %>
+
+<% if (pageIndex === 1 || pageIndex === undefined) { %>
+
+<!-- Highlights -->
+<% if (highlights && highlights.length > 0) { %>
+<div class="section">
+  <div class="section-title">⭐ 高价值发言</div>
+  <% highlights.forEach(function(h) { %>
+  <div class="highlight-card">
+    <div><span class="highlight-user">@<%= h.user %></span>: <%= h.content %></div>
+    <% if (h.comment) { %>
+    <div class="highlight-comment"> — <%= h.comment %></div>
+    <% } %>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+
+<!-- Moderation -->
+<% if (moderation && moderation.length > 0) { %>
+<div class="section">
+  <div class="section-title">⚠️ 质量审核</div>
+  <% moderation.forEach(function(m) { %>
+  <div class="mod-card warn">
+    <span class="mod-type">[<%= m.type %>]</span> @<%= m.user %>: <%= m.content %>
+    <% if (m.reason) { %>
+    <div style="color: #9ca3af; font-size: 12px;"><%= m.reason %></div>
+    <% } %>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+
+<!-- Resources -->
+<% if (resources && resources.length > 0) { %>
+<div class="section">
+  <div class="section-title">🔗 资源链接</div>
+  <% resources.forEach(function(r) { %>
+  <div class="resource-card">
+    <span class="resource-user">@<%= r.user %></span>: <span class="resource-url"><%= r.url %></span>
+    <% if (r.description) { %>
+    <div class="resource-desc"><%= r.description %></div>
+    <% } %>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+
+<% } %>
+
+<!-- Footer -->
+<div class="footer">
+  QQ群聊总结 · AI 生成 · <%= date %> <%= generatedAt || '' %>
+</div>
+
+</body>
+</html>
