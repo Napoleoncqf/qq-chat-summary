@@ -9,8 +9,6 @@ export const config = {
   onebotHttpUrl: process.env.ONEBOT_HTTP_URL || 'http://127.0.0.1:3000',
   onebotToken: process.env.ONEBOT_TOKEN || '',
 
-  // Target groups: "id" or "id:group" (comma-separated)
-  // e.g. "123,456:group" → 123 sends private, 456 sends to group
   // Target groups: "id", "id:group", or "id:group:daily" (comma-separated)
   // sendMode: "private" (default) or "group"
   // schedule: "3x" (default, 3 times/day) or "daily" (once at 17:30, previous day)

@@ -83,8 +83,8 @@ async function main() {
   const cardRenderer = new CardRenderer(config.templateDir, config.outputDir);
   const sender = new OneBotSender(config.onebotHttpUrl, config.onebotToken);
 
-  // Build scheduler instances (without starting their own crons)
-  const schedulerConfigs: Array<{ scheduler: SummaryScheduler; groupName: string; sendMode: string; schedule: string }> = [];
+  // Build scheduler instances
+  const schedulerConfigs: Array<{ scheduler: SummaryScheduler; groupName: string; schedule: string }> = [];
 
   for (const { groupId, sendMode, schedule } of config.targetGroups) {
     let groupName = await getGroupName(groupId);
@@ -106,14 +106,16 @@ async function main() {
       botQq,
     });
 
-    schedulerConfigs.push({ scheduler, groupName, sendMode, schedule });
+    schedulerConfigs.push({ scheduler, groupName, schedule });
   }
 
-  // Separate groups by schedule
+  // Separate groups by schedule type
   const regularGroups = schedulerConfigs.filter(s => s.schedule !== 'daily');
   const dailyGroups = schedulerConfigs.filter(s => s.schedule === 'daily');
 
-  // Run regular (3x/day) groups for a given period
+  // Concurrency guard — prevent duplicate runs if cron fires while previous is still running
+  let running = false;
+
   const runRegular = async (period: 'night' | 'daytime' | 'evening') => {
     if (regularGroups.length === 0) return;
     logger.info('Main', `=== ${period} summary triggered for ${regularGroups.length} group(s) ===`);
@@ -129,7 +131,6 @@ async function main() {
     logger.info('Main', `=== ${period} summary complete ===`);
   };
 
-  // Run daily groups (previous day summary, once at 17:30)
   const runDaily = async () => {
     if (dailyGroups.length === 0) return;
     logger.info('Main', `=== daily summary triggered for ${dailyGroups.length} group(s) ===`);
@@ -145,11 +146,25 @@ async function main() {
     logger.info('Main', `=== daily summary complete ===`);
   };
 
-  // Single set of cron jobs
+  // Guarded runner — skip if already in progress
+  const guarded = async (label: string, fn: () => Promise<void>) => {
+    if (running) {
+      logger.warn('Main', `Skipping ${label}: previous run still in progress`);
+      return;
+    }
+    running = true;
+    try {
+      await fn();
+    } finally {
+      running = false;
+    }
+  };
+
+  // Cron jobs
   const cronTasks = [
-    cron.schedule('30 7 * * *', () => { runRegular('night'); }),
-    cron.schedule('30 17 * * *', async () => { await runRegular('daytime'); await runDaily(); }),
-    cron.schedule('30 22 * * *', () => { runRegular('evening'); }),
+    cron.schedule('30 7 * * *', () => { guarded('night', () => runRegular('night')); }),
+    cron.schedule('30 17 * * *', () => { guarded('daytime', async () => { await runRegular('daytime'); await runDaily(); }); }),
+    cron.schedule('30 22 * * *', () => { guarded('evening', () => runRegular('evening')); }),
   ];
 
   logger.info('Main', `Scheduled: 07:30 + 17:30 + 22:30 | regular: ${regularGroups.length}, daily: ${dailyGroups.length}`);

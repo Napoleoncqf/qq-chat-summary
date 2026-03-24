@@ -13,3 +13,4 @@ CLAUDE.md
 vitest.config.ts
 .env
 *.log
+logs/
