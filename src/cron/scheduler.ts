@@ -1,4 +1,3 @@
-import cron from 'node-cron';
 import axios from 'axios';
 import { SummaryGenerator } from '../summary/gemini-client';
 import { CardRenderer } from '../render/card-renderer';
@@ -28,61 +27,9 @@ interface RawMsg {
 
 export class SummaryScheduler {
   private options: SchedulerOptions;
-  private tasks: cron.ScheduledTask[] = [];
 
   constructor(options: SchedulerOptions) {
     this.options = options;
-  }
-
-  /**
-   * Start three cron jobs:
-   *   07:30 — summarize late night (22:30 yesterday → 07:30 today)
-   *   17:30 — summarize daytime    (07:30 today     → 17:30 today)
-   *   22:30 — summarize evening    (17:30 today     → 22:30 today)
-   */
-  start(): void {
-    // Morning summary at 07:30 (covers late night)
-    this.tasks.push(
-      cron.schedule('30 7 * * *', async () => {
-        logger.info('Scheduler', '=== Late-night summary triggered ===');
-        try {
-          await this.runHalfDayPipeline('night');
-        } catch (err) {
-          logger.error('Scheduler', 'Night pipeline failed', err);
-        }
-      })
-    );
-
-    // Afternoon summary at 17:30 (covers daytime)
-    this.tasks.push(
-      cron.schedule('30 17 * * *', async () => {
-        logger.info('Scheduler', '=== Daytime summary triggered ===');
-        try {
-          await this.runHalfDayPipeline('daytime');
-        } catch (err) {
-          logger.error('Scheduler', 'Daytime pipeline failed', err);
-        }
-      })
-    );
-
-    // Night summary at 22:30 (covers evening)
-    this.tasks.push(
-      cron.schedule('30 22 * * *', async () => {
-        logger.info('Scheduler', '=== Evening summary triggered ===');
-        try {
-          await this.runHalfDayPipeline('evening');
-        } catch (err) {
-          logger.error('Scheduler', 'Evening pipeline failed', err);
-        }
-      })
-    );
-
-    logger.info('Scheduler', 'Scheduled: 07:30 (night) + 17:30 (daytime) + 22:30 (evening)');
-  }
-
-  stop(): void {
-    this.tasks.forEach(t => t.stop());
-    this.tasks = [];
   }
 
   /**
@@ -90,7 +37,7 @@ export class SummaryScheduler {
    * Can also be called manually for testing.
    */
   async runHalfDayPipeline(
-    period: 'night' | 'daytime' | 'evening',
+    period: 'night' | 'daytime' | 'evening' | 'daily',
     overrideStart?: Date,
     overrideEnd?: Date
   ): Promise<string[]> {
@@ -105,6 +52,11 @@ export class SummaryScheduler {
       windowStart = overrideStart;
       windowEnd = overrideEnd;
       label = '自定义时段';
+    } else if (period === 'daily') {
+      // Full previous day: 00:00 yesterday → 23:59:59 yesterday
+      windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+      windowEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+      label = '每日总结';
     } else if (period === 'night') {
       // 22:30 yesterday → 07:30 today
       windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 22, 30, 0);
@@ -124,7 +76,7 @@ export class SummaryScheduler {
 
     const startTs = Math.floor(windowStart.getTime() / 1000);
     const endTs = Math.floor(windowEnd.getTime() / 1000);
-    const dateStr = formatDate(now);
+    const dateStr = period === 'daily' ? formatDate(windowStart) : formatDate(now);
     const timeRange = `${formatTime(windowStart)}-${formatTime(windowEnd)}`;
 
     logger.info('Scheduler', `${label}: ${timeRange}`);
@@ -148,19 +100,30 @@ export class SummaryScheduler {
       timestamp: m.time,
     }));
 
-    // Step 2: Generate summary + roast in parallel
-    logger.info('Scheduler', 'Generating AI summary and roast...');
-    const [summary, roast] = await Promise.all([
+    // Step 2: Generate summary + roast + breakdown in parallel
+    logger.info('Scheduler', 'Generating AI summary, roast, and breakdown...');
+    const [summary, roast, breakdown] = await Promise.all([
       summaryGenerator.generateSummary(messages, `${dateStr} ${label}`, groupName),
       summaryGenerator.generateRoast(messages, `${dateStr} ${timeRange}`, groupName),
+      summaryGenerator.generateBreakdown(messages, `${dateStr} ${label}`, groupName),
     ]);
 
-    // Step 3: Render card images + roast card
+    // Step 3: Render card images
     const theme = period === 'evening' ? 'dark' : 'light';
     logger.info('Scheduler', `Rendering cards (${theme} theme)...`);
-    summary.date = `${dateStr} · ${label} (${timeRange})`;
+    summary.date = period === 'daily'
+      ? `${dateStr} · ${label}`
+      : `${dateStr} · ${label} (${timeRange})`;
     const imagePaths = await cardRenderer.render(summary, theme);
 
+    // Add breakdown card
+    if (breakdown.categories.length > 0) {
+      logger.info('Scheduler', 'Rendering breakdown card...');
+      const breakdownPath = await cardRenderer.renderBreakdown(breakdown, theme);
+      imagePaths.push(breakdownPath);
+    }
+
+    // Add roast card
     if (roast.items.length > 0) {
       logger.info('Scheduler', 'Rendering roast card...');
       const roastPath = await cardRenderer.renderRoast(roast, theme);
@@ -193,8 +156,8 @@ export class SummaryScheduler {
 
     const seen = new Set<number>();
     const result: RawMsg[] = [];
-    const BATCH_SIZE = 2000;
     const MAX_PAGES = 5;
+    const TIMEOUT = 120000;
 
     const addToResult = (msgs: RawMsg[]) => {
       for (const m of msgs) {
@@ -205,19 +168,42 @@ export class SummaryScheduler {
       }
     };
 
-    // First fetch: latest messages (no message_seq)
-    const resp = await axios.post(
-      `${this.options.onebotHttpUrl}/get_group_msg_history`,
-      { group_id: Number(groupId), count: BATCH_SIZE },
-      { headers, timeout: 60000 }
-    );
+    // Try fetching with decreasing batch sizes on timeout
+    const batchSizes = [500, 200, 100];
+    let firstBatch: RawMsg[] | null = null;
 
-    if (resp.data?.retcode !== 0) {
-      logger.error('Scheduler', `History API error: ${JSON.stringify(resp.data)}`);
+    for (const count of batchSizes) {
+      try {
+        logger.info('Scheduler', `Fetching history (group ${groupId}, count=${count}, timeout=${TIMEOUT}ms)...`);
+        const resp = await axios.post(
+          `${this.options.onebotHttpUrl}/get_group_msg_history`,
+          { group_id: Number(groupId), count },
+          { headers, timeout: TIMEOUT }
+        );
+
+        if (resp.data?.retcode !== 0) {
+          logger.error('Scheduler', `History API error (group ${groupId}): retcode=${resp.data?.retcode}, msg=${resp.data?.message || 'unknown'}`);
+          return [];
+        }
+
+        firstBatch = resp.data.data?.messages || [];
+        break;
+      } catch (err: any) {
+        const errMsg = err.code === 'ECONNABORTED' ? `timeout after ${TIMEOUT}ms` : (err.message || String(err));
+        logger.warn('Scheduler', `Fetch failed (group ${groupId}, count=${count}): ${errMsg}`);
+        if (err.code !== 'ECONNABORTED') {
+          // Non-timeout error, no point retrying with smaller batch
+          logger.error('Scheduler', `Non-timeout error for group ${groupId}, giving up`);
+          return [];
+        }
+      }
+    }
+
+    if (!firstBatch) {
+      logger.error('Scheduler', `All fetch attempts timed out for group ${groupId}`);
       return [];
     }
 
-    const firstBatch: RawMsg[] = resp.data.data?.messages || [];
     addToResult(firstBatch);
     logger.info('Scheduler', `Batch 1: fetched ${firstBatch.length} total, ${result.length} in window`);
 
@@ -230,27 +216,32 @@ export class SummaryScheduler {
         let curSeq = earliest.message_id;
 
         for (let page = 0; page < MAX_PAGES; page++) {
-          const pageResp = await axios.post(
-            `${this.options.onebotHttpUrl}/get_group_msg_history`,
-            { group_id: Number(groupId), count: BATCH_SIZE, message_seq: curSeq, reverseOrder: true },
-            { headers, timeout: 60000 }
-          );
+          try {
+            const pageResp = await axios.post(
+              `${this.options.onebotHttpUrl}/get_group_msg_history`,
+              { group_id: Number(groupId), count: 500, message_seq: curSeq, reverseOrder: true },
+              { headers, timeout: TIMEOUT }
+            );
 
-          if (pageResp.data?.retcode !== 0) break;
+            if (pageResp.data?.retcode !== 0) break;
 
-          const msgs: RawMsg[] = pageResp.data.data?.messages || [];
-          if (msgs.length === 0) break;
+            const msgs: RawMsg[] = pageResp.data.data?.messages || [];
+            if (msgs.length === 0) break;
 
-          const prevCount = result.length;
-          addToResult(msgs);
-          logger.info('Scheduler', `Batch ${page + 2} (reverse): fetched ${msgs.length}, added ${result.length - prevCount} in window`);
+            const prevCount = result.length;
+            addToResult(msgs);
+            logger.info('Scheduler', `Batch ${page + 2} (reverse): fetched ${msgs.length}, added ${result.length - prevCount} in window`);
 
-          // Check if we've reached before window start
-          const batchEarliest = msgs.reduce((a, b) => (a.time < b.time ? a : b));
-          if (batchEarliest.time <= startTs) break;
+            // Check if we've reached before window start
+            const batchEarliest = msgs.reduce((a, b) => (a.time < b.time ? a : b));
+            if (batchEarliest.time <= startTs) break;
 
-          // Continue from the earliest in this batch
-          curSeq = batchEarliest.message_id;
+            curSeq = batchEarliest.message_id;
+          } catch (err: any) {
+            const errMsg = err.code === 'ECONNABORTED' ? 'timeout' : (err.message || String(err));
+            logger.warn('Scheduler', `Pagination batch ${page + 2} failed (group ${groupId}): ${errMsg}`);
+            break;
+          }
         }
       }
     }

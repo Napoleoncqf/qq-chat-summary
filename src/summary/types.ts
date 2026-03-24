@@ -7,25 +7,11 @@ export interface TopicSummary {
 export interface HighlightMessage {
   user: string;
   content: string;
-  comment: string;
 }
 
 export interface UserRanking {
   user: string;
   count: number;
-}
-
-export interface ModerationItem {
-  type: string; // e.g. "粗俗谐音", "不当内容"
-  user: string;
-  content: string;
-  reason: string;
-}
-
-export interface ResourceLink {
-  user: string;
-  url: string;
-  description: string;
 }
 
 export interface ChatStats {
@@ -41,8 +27,6 @@ export interface DailySummary {
   topics: TopicSummary[];
   highlights: HighlightMessage[];
   ranking: UserRanking[];
-  moderation: ModerationItem[];
-  resources: ResourceLink[];
 }
 
 export interface RoastItem {
@@ -58,4 +42,20 @@ export interface RoastResult {
   message_count: number;
   user_count: number;
   items: RoastItem[];
+}
+
+export interface TopicCategory {
+  category: string;
+  percentage: number;
+  title: string;
+  description: string;
+}
+
+export interface TopicBreakdown {
+  group_name: string;
+  date_range: string;
+  overall_score: number;
+  categories: TopicCategory[];
+  overall_comment_title: string;
+  overall_comment: string;
 }

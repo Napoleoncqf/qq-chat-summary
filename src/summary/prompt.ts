@@ -4,54 +4,24 @@ export const SYSTEM_PROMPT = `你是一个QQ群聊分析助手。你的任务是
 
 输出JSON Schema：
 {
-  "stats": {
-    "message_count": <消息总数，整数>,
-    "user_count": <参与人数，整数>,
-    "active_hours": "<活跃时段，格式如 08:15-16:38>"
-  },
   "topics": [
     {
       "title": "<话题标题，简短概括>",
-      "summary": "<话题摘要，一两句话描述讨论内容>",
+      "summary": "<一句话核心结论，不要用"多位玩家讨论了"这类废话>",
       "participants": ["<参与者昵称>", ...]
     }
   ],
   "highlights": [
     {
       "user": "<发言者昵称>",
-      "content": "<发言内容摘要>",
-      "comment": "<点评，说明为什么这条发言有价值>"
-    }
-  ],
-  "ranking": [
-    {
-      "user": "<用户昵称>",
-      "count": <消息数量>
-    }
-  ],
-  "moderation": [
-    {
-      "type": "<类型：粗俗谐音/不当内容/广告/其他>",
-      "user": "<用户昵称>",
-      "content": "<内容摘要>",
-      "reason": "<标记原因>"
-    }
-  ],
-  "resources": [
-    {
-      "user": "<分享者昵称>",
-      "url": "<链接地址>",
-      "description": "<资源描述>"
+      "content": "<发言内容摘要>"
     }
   ]
 }
 
 分析规则：
-1. topics：提取3-15个主要讨论话题，按讨论热度排序。每个话题需包含参与者列表（用@昵称格式）。
-2. highlights：选出3-8条高价值发言（分享资源、提出见解、解答问题等），附上简短点评。
-3. ranking：按消息数量降序排列所有活跃用户，最多显示前8名。
-4. moderation：标记粗俗、不当、广告等内容，如果没有则返回空数组。注意区分正常调侃和真正的不当内容。正常讨论政治话题无需标记，只标记明确违规内容。
-5. resources：提取消息中分享的所有URL链接，附上分享者和描述。如果没有则返回空数组。
+1. topics：提取3-5个最重要的讨论话题，按讨论热度排序。每个话题需包含参与者列表。summary必须是有信息量的一句话结论，而不是"大家讨论了XX"这种空洞描述。
+2. highlights：选出2-3条最有价值的发言（分享资源、提出关键见解、解答重要问题）。只选真正有信息量的，不要凑数。
 
 重要：
 - 保持客观中立，不添加个人观点
@@ -60,7 +30,7 @@ export const SYSTEM_PROMPT = `你是一个QQ群聊分析助手。你的任务是
 - 严格只输出JSON，不要有任何额外文字`;
 
 export function buildUserPrompt(messages: string[], date: string, groupName: string): string {
-  const header = `以下是「${groupName}」在 ${date} 的群聊记录，请分析并生成每日总结。\n\n<data>\n`;
+  const header = `以下是「${groupName}」在 ${date} 的群聊记录，请分析并生成总结。\n\n<data>\n`;
   const footer = `\n</data>`;
   return header + messages.join('\n') + footer;
 }
@@ -109,4 +79,42 @@ export function formatMessagesForPrompt(
     const mm = String(time.getMinutes()).padStart(2, '0');
     return `[${hh}:${mm}] ${msg.nickname}: ${msg.content}`;
   });
+}
+
+export const BREAKDOWN_SYSTEM_PROMPT = `你是一个QQ群聊话题分析专家。你的任务是分析群聊记录，将聊天内容分类并给出综合评分。
+
+你必须严格输出JSON格式，不要包含任何其他文本、markdown标记或代码块标记。
+
+输出JSON Schema：
+{
+  "overall_score": <0-100的整数，综合评分，考虑信息密度、讨论质量、互动氛围>,
+  "categories": [
+    {
+      "category": "<话题类别名称，如：水群/闲聊、AI产品讨论、技术开发、求助答疑等>",
+      "percentage": <该类别占总消息的百分比，保留1位小数>,
+      "title": "<4-8字的趣味标题，概括该类别的特点>",
+      "description": "<25-50字的生动描述，点评该类别的内容特色>"
+    }
+  ],
+  "overall_comment_title": "<15字以内的总评标题，概括今日最大变化或特点>",
+  "overall_comment": "<50-120字的总评正文，分析今天群聊的整体趋势和亮点>"
+}
+
+分析规则：
+1. categories：将所有消息分成4-6个话题类别，按占比降序排列
+2. 百分比之和应约等于100%（允许因四舍五入有小偏差）
+3. overall_score评分标准：
+   - 90+：极高质量讨论，大量干货和原创见解
+   - 70-89：讨论活跃且有价值
+   - 50-69：一般水平，水群偏多但有一些有用信息
+   - 30-49：以闲聊为主，有价值信息较少
+   - <30：几乎纯水群
+4. title要有趣味性和个性，不要平淡的描述
+5. description要具体有画面感，不要空洞的概括
+6. 严格只输出JSON，不要有任何额外文字`;
+
+export function buildBreakdownUserPrompt(messages: string[], date: string, groupName: string): string {
+  const header = `以下是「${groupName}」在 ${date} 的群聊记录，请分析话题分布并评分。\n\n<data>\n`;
+  const footer = `\n</data>`;
+  return header + messages.join('\n') + footer;
 }

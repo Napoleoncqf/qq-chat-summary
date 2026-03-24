@@ -84,14 +84,15 @@ async function main() {
   const sender = new OneBotSender(config.onebotHttpUrl, config.onebotToken);
 
   // Build scheduler instances (without starting their own crons)
-  const schedulerConfigs: Array<{ scheduler: SummaryScheduler; groupName: string; sendMode: string }> = [];
+  const schedulerConfigs: Array<{ scheduler: SummaryScheduler; groupName: string; sendMode: string; schedule: string }> = [];
 
-  for (const { groupId, sendMode } of config.targetGroups) {
+  for (const { groupId, sendMode, schedule } of config.targetGroups) {
     let groupName = await getGroupName(groupId);
     if (!groupName) groupName = groupId;
 
     const modeLabel = sendMode === 'group' ? '→ 群聊' : `→ 私聊 ${botQq}`;
-    logger.info('Main', `Group: ${groupId} (${groupName}) [${modeLabel}]`);
+    const schedLabel = schedule === 'daily' ? '每日1次' : '每日3次';
+    logger.info('Main', `Group: ${groupId} (${groupName}) [${modeLabel}] [${schedLabel}]`);
 
     const scheduler = new SummaryScheduler({
       groupId,
@@ -105,36 +106,59 @@ async function main() {
       botQq,
     });
 
-    schedulerConfigs.push({ scheduler, groupName, sendMode });
+    schedulerConfigs.push({ scheduler, groupName, sendMode, schedule });
   }
 
-  // Run all groups sequentially for a given period
-  const runAll = async (period: 'night' | 'daytime' | 'evening') => {
-    logger.info('Main', `=== ${period} summary triggered for ${schedulerConfigs.length} group(s) ===`);
-    for (const { scheduler, groupName } of schedulerConfigs) {
+  // Separate groups by schedule
+  const regularGroups = schedulerConfigs.filter(s => s.schedule !== 'daily');
+  const dailyGroups = schedulerConfigs.filter(s => s.schedule === 'daily');
+
+  // Run regular (3x/day) groups for a given period
+  const runRegular = async (period: 'night' | 'daytime' | 'evening') => {
+    if (regularGroups.length === 0) return;
+    logger.info('Main', `=== ${period} summary triggered for ${regularGroups.length} group(s) ===`);
+    for (const { scheduler, groupName } of regularGroups) {
       try {
         logger.info('Main', `Processing: ${groupName}`);
         await scheduler.runHalfDayPipeline(period);
-      } catch (err) {
-        logger.error('Main', `Failed: ${groupName}`, err);
+      } catch (err: any) {
+        const errMsg = err.code === 'ECONNABORTED' ? `timeout (${err.message})` : (err.message || String(err));
+        logger.error('Main', `Failed: ${groupName} — ${errMsg}`);
       }
     }
     logger.info('Main', `=== ${period} summary complete ===`);
   };
 
-  // Single set of cron jobs, groups processed sequentially
+  // Run daily groups (previous day summary, once at 17:30)
+  const runDaily = async () => {
+    if (dailyGroups.length === 0) return;
+    logger.info('Main', `=== daily summary triggered for ${dailyGroups.length} group(s) ===`);
+    for (const { scheduler, groupName } of dailyGroups) {
+      try {
+        logger.info('Main', `Processing daily: ${groupName}`);
+        await scheduler.runHalfDayPipeline('daily');
+      } catch (err: any) {
+        const errMsg = err.code === 'ECONNABORTED' ? `timeout (${err.message})` : (err.message || String(err));
+        logger.error('Main', `Failed: ${groupName} — ${errMsg}`);
+      }
+    }
+    logger.info('Main', `=== daily summary complete ===`);
+  };
+
+  // Single set of cron jobs
   const cronTasks = [
-    cron.schedule('30 7 * * *', () => { runAll('night'); }),
-    cron.schedule('30 17 * * *', () => { runAll('daytime'); }),
-    cron.schedule('30 22 * * *', () => { runAll('evening'); }),
+    cron.schedule('30 7 * * *', () => { runRegular('night'); }),
+    cron.schedule('30 17 * * *', async () => { await runRegular('daytime'); await runDaily(); }),
+    cron.schedule('30 22 * * *', () => { runRegular('evening'); }),
   ];
 
-  logger.info('Main', `Scheduled: 07:30 + 17:30 + 22:30 (${config.targetGroups.length} groups, sequential)`);
+  logger.info('Main', `Scheduled: 07:30 + 17:30 + 22:30 | regular: ${regularGroups.length}, daily: ${dailyGroups.length}`);
 
   // Graceful shutdown
-  const shutdown = () => {
+  const shutdown = async () => {
     logger.info('Main', 'Shutting down...');
     cronTasks.forEach(t => t.stop());
+    await cardRenderer.close();
     process.exit(0);
   };
 

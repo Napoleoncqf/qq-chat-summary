@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=520">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 520px;
+    font-family: "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+    line-height: 1.6;
+    padding: 24px 20px;
+  }
+  body.light-body {
+    background: linear-gradient(135deg, #fce4ec 0%, #e8eaf6 50%, #e3f2fd 100%);
+    color: #1a1a2e;
+  }
+  body.dark-body {
+    background: linear-gradient(135deg, #1a0a1e 0%, #0d0d2a 50%, #0a1628 100%);
+    color: #e0e0e0;
+  }
+
+  /* Score header */
+  .score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    border-radius: 16px;
+  }
+  .light-body .score-header { background: rgba(255,255,255,0.7); }
+  .dark-body .score-header { background: rgba(30,30,60,0.7); }
+
+  .score-label { font-size: 18px; font-weight: 700; }
+  .light-body .score-label { color: #d81b60; }
+  .dark-body .score-label { color: #f48fb1; }
+
+  .score-value { font-size: 42px; font-weight: 700; letter-spacing: 2px; }
+  .light-body .score-value { color: #1a1a2e; }
+  .dark-body .score-value { color: #e0e0e0; }
+
+  .score-max { font-size: 24px; font-weight: 400; opacity: 0.5; }
+
+  /* Category grid */
+  .category-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .category-card {
+    border-radius: 12px;
+    padding: 14px;
+  }
+  .light-body .category-card {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .dark-body .category-card {
+    background: rgba(30,30,60,0.7);
+    border: 1px solid rgba(100,80,180,0.25);
+  }
+
+  .cat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+  }
+  .cat-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .cat-pct {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .light-body .cat-pct { color: #999; }
+  .dark-body .cat-pct { color: #555; }
+
+  .cat-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .light-body .cat-title { color: #1a1a2e; }
+  .dark-body .cat-title { color: #e0e0e0; }
+
+  .cat-desc {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .light-body .cat-desc { color: #666; }
+  .dark-body .cat-desc { color: #999; }
+
+  /* Overall comment */
+  .overall-section {
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .light-body .overall-section {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .dark-body .overall-section {
+    background: rgba(30,30,60,0.7);
+    border: 1px solid rgba(100,80,180,0.25);
+  }
+
+  .overall-tag {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+  }
+  .light-body .overall-tag { background: #fce4ec; color: #c62828; }
+  .dark-body .overall-tag { background: rgba(244,143,177,0.2); color: #f48fb1; }
+
+  .overall-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+  .light-body .overall-title { color: #1a1a2e; }
+  .dark-body .overall-title { color: #e0e0e0; }
+
+  .overall-text {
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .light-body .overall-text { color: #555; }
+  .dark-body .overall-text { color: #aaa; }
+</style>
+</head>
+<body class="<%= theme === 'light' ? 'light-body' : 'dark-body' %>">
+
+<!-- Score Header -->
+<div class="score-header">
+  <div class="score-label">今日综合评分</div>
+  <div><span class="score-value"><%= overall_score %></span><span class="score-max"> / 100</span></div>
+</div>
+
+<!-- Category Grid -->
+<%
+  var tagStyles = [
+    { bg: '#e8f5e9', text: '#2e7d32', darkBg: 'rgba(46,125,50,0.2)', darkText: '#81c784' },
+    { bg: '#e3f2fd', text: '#1565c0', darkBg: 'rgba(21,101,192,0.2)', darkText: '#64b5f6' },
+    { bg: '#fff3e0', text: '#e65100', darkBg: 'rgba(230,81,0,0.2)', darkText: '#ffb74d' },
+    { bg: '#e0f2f1', text: '#00695c', darkBg: 'rgba(0,105,92,0.2)', darkText: '#4db6ac' },
+    { bg: '#f3e5f5', text: '#7b1fa2', darkBg: 'rgba(123,31,162,0.2)', darkText: '#ce93d8' },
+    { bg: '#fce4ec', text: '#c62828', darkBg: 'rgba(198,40,40,0.2)', darkText: '#ef9a9a' },
+  ];
+%>
+
+<div class="category-grid">
+<% categories.forEach(function(cat, i) { %>
+  <% var s = tagStyles[i % tagStyles.length]; %>
+  <div class="category-card">
+    <div class="cat-header">
+      <span class="cat-tag" style="background: <%= theme === 'light' ? s.bg : s.darkBg %>; color: <%= theme === 'light' ? s.text : s.darkText %>;"><%= cat.category %> <%= cat.percentage %>%</span>
+      <span class="cat-pct"><%= Math.round(cat.percentage) %>%</span>
+    </div>
+    <div class="cat-title"><%= cat.title %></div>
+    <div class="cat-desc"><%= cat.description %></div>
+  </div>
+<% }); %>
+</div>
+
+<!-- Overall Comment -->
+<% if (overall_comment_title || overall_comment) { %>
+<div class="overall-section">
+  <div class="overall-tag">今日总评</div>
+  <% if (overall_comment_title) { %>
+  <div class="overall-title"><%= overall_comment_title %></div>
+  <% } %>
+  <% if (overall_comment) { %>
+  <div class="overall-text"><%= overall_comment %></div>
+  <% } %>
+</div>
+<% } %>
+
+</body>
+</html>
