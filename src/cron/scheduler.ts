@@ -17,12 +17,18 @@ export interface SchedulerOptions {
   botQq: string;
 }
 
+interface RawMsgSegment {
+  type: string;
+  data: Record<string, any>;
+}
+
 interface RawMsg {
   time: number;
   sender: { user_id: number; nickname: string; card?: string };
   raw_message: string;
   message_id: number;
   group_id: number;
+  message?: RawMsgSegment[];
 }
 
 export class SummaryScheduler {
@@ -91,6 +97,9 @@ export class SummaryScheduler {
       return [];
     }
 
+    // Step 1.5: Expand forwarded messages
+    await this.expandForwardMessages(rawMsgs);
+
     const messages: Message[] = rawMsgs.map(m => ({
       group_id: String(m.group_id),
       user_id: String(m.sender.user_id),
@@ -146,6 +155,117 @@ export class SummaryScheduler {
 
     logger.info('Scheduler', 'Pipeline complete');
     return imagePaths;
+  }
+
+  /**
+   * Expand forwarded messages using inline segment data (preferred) or get_forward_msg API (fallback).
+   * Depth=1 only (nested forwards are marked as skipped).
+   */
+  private async expandForwardMessages(rawMsgs: RawMsg[]): Promise<void> {
+    const FORWARD_CQ_REGEX = /\[CQ:forward,[^\]]*\]/g;
+    const MAX_SUB_MESSAGES = 20;
+    const MAX_CHAR_PER_MSG = 500;
+
+    let expandedCount = 0;
+    let failedCount = 0;
+
+    for (const msg of rawMsgs) {
+      // Method 1: Check message segments for forward type (NapCat inlines content)
+      const forwardSeg = msg.message?.find(s => s.type === 'forward');
+      if (!forwardSeg && !FORWARD_CQ_REGEX.test(msg.raw_message)) continue;
+      // Reset regex lastIndex after test()
+      FORWARD_CQ_REGEX.lastIndex = 0;
+
+      let subMessages: Array<{
+        sender?: { user_id?: number; nickname?: string; card?: string };
+        raw_message?: string;
+      }> | null = null;
+
+      // Try inline content first (zero API calls)
+      if (forwardSeg?.data?.content && Array.isArray(forwardSeg.data.content)) {
+        subMessages = forwardSeg.data.content;
+      }
+
+      // Fallback: call get_forward_msg API
+      if (!subMessages) {
+        const idMatch = msg.raw_message.match(/\[CQ:forward,[^\]]*?id=([^,\]]+)/);
+        if (idMatch) {
+          subMessages = await this.fetchForwardContent(idMatch[1]);
+        }
+      }
+
+      if (!subMessages || subMessages.length === 0) {
+        msg.raw_message = msg.raw_message.replace(FORWARD_CQ_REGEX, '[转发消息，无法展开]');
+        failedCount++;
+        continue;
+      }
+
+      // Format sub-messages
+      const expandedParts: string[] = [];
+      const capped = subMessages.slice(0, MAX_SUB_MESSAGES);
+
+      for (const sub of capped) {
+        const name = sub.sender?.card || sub.sender?.nickname || String(sub.sender?.user_id || '未知');
+        let content = sub.raw_message || '';
+
+        // Depth=1: replace nested forwards
+        content = content.replace(/\[CQ:forward,[^\]]*\]/g, '[嵌套转发，已略]');
+        // Strip media CQ codes, keep text
+        content = content.replace(/\[CQ:[^\]]+\]/g, '').trim();
+        // Truncate
+        if (content.length > MAX_CHAR_PER_MSG) {
+          content = content.slice(0, MAX_CHAR_PER_MSG) + '…';
+        }
+
+        if (content) {
+          expandedParts.push(`【转发·${name}】${content}`);
+        }
+      }
+
+      if (expandedParts.length > 0) {
+        let expanded = expandedParts.join('\n');
+        if (subMessages.length > MAX_SUB_MESSAGES) {
+          expanded += `\n[…共${subMessages.length}条转发，已展示前${MAX_SUB_MESSAGES}条]`;
+        }
+        msg.raw_message = msg.raw_message.replace(FORWARD_CQ_REGEX, expanded);
+        expandedCount++;
+      } else {
+        msg.raw_message = msg.raw_message.replace(FORWARD_CQ_REGEX, '[转发消息，内容为纯媒体]');
+      }
+    }
+
+    if (expandedCount > 0 || failedCount > 0) {
+      logger.info('Scheduler', `转发消息展开: ${expandedCount} 成功, ${failedCount} 失败`);
+    }
+  }
+
+  /** Fallback: fetch forward content via API when segment data is missing */
+  private async fetchForwardContent(forwardId: string): Promise<Array<{
+    sender?: { user_id?: number; nickname?: string; card?: string };
+    raw_message?: string;
+  }> | null> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.options.onebotToken) {
+      headers['Authorization'] = `Bearer ${this.options.onebotToken}`;
+    }
+
+    // Try both param names for compatibility
+    for (const body of [{ id: forwardId }, { message_id: forwardId }]) {
+      try {
+        const resp = await axios.post(
+          `${this.options.onebotHttpUrl}/get_forward_msg`,
+          body,
+          { headers, timeout: 5000 }
+        );
+        if (resp.data?.retcode === 0 && resp.data.data?.messages) {
+          return resp.data.data.messages;
+        }
+      } catch (err: any) {
+        const errMsg = err.code === 'ECONNABORTED' ? '超时' : (err.message || String(err));
+        logger.warn('Scheduler', `get_forward_msg fallback failed (id=${forwardId}): ${errMsg}`);
+      }
+    }
+    return null;
   }
 
   private async fetchHistory(groupId: string, startTs: number, endTs: number): Promise<RawMsg[]> {

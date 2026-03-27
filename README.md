@@ -11,9 +11,10 @@ QQ 群聊自动总结机器人 -- 基于 NapCat (OneBot v11) + Gemini AI，定�
 - **多群支持** -- 逗号分隔群号，每群独立配置发送方式和推送频率
 - **串行处理** -- 多群按顺序逐一生成，避免 API 限频
 - **明暗主题** -- 根据时段自动切换 light/dark 卡片风格
+- **转发消息展开** -- 自动解析合并转发内容，纳入 AI 总结（深度=1，上限 20 条）
 - **完整消息覆盖** -- 大批量拉取 + 反向分页，确保不遗漏
 - **双 LLM 降级** -- Gemini 主力 + DeepSeek 备用，3 次重试
-- **零配置启动** -- 群名、机器人QQ 自动获取，只需填群号和 API Key
+- **一键配置** -- `npm run setup` 交互式向导生成 .env，零门槛上手
 
 ## Output
 
@@ -58,8 +59,11 @@ templates/
 └── roast.ejs               # 锐评卡片模板
 
 scripts/
+├── setup.ts                # 交互式配置向导
 ├── manual-trigger.ts       # 手动触发全部群
-└── test-single.ts          # 单群测试
+├── test-single.ts          # 单群测试
+├── test-forward.ts         # 转发消息展开测试
+└── test-e2e.ts             # 端到端集成测试
 ```
 
 ## Quick Start
@@ -80,6 +84,16 @@ npx playwright install chromium
 ```
 
 ### Configure
+
+**方式一：交互式向导（推荐新手）**
+
+```bash
+npm run setup
+```
+
+按提示输入群号、API Key 等信息，自动生成 `.env` 配置文件。
+
+**方式二：手动编辑**
 
 复制 `.env.example` 创建 `.env`，只需填两项：
 
